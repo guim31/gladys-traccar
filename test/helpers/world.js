@@ -46,7 +46,8 @@ export async function createWorld({
   const app = registerHandlers(gladys, {
     fetch: net.fetch,
     createSocket: net.createSocket,
-    timings,
+    // No throttling of the continuous values, unless a test asks for it.
+    timings: { continuousGap: 0, ...timings },
     socketTimings: FAST_SOCKET,
     now,
   });

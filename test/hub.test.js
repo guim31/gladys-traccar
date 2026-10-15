@@ -136,6 +136,71 @@ test('an alarm fires once per position, with its label in the configured languag
   );
 });
 
+test('an alarm repeated on every message fires once', async (t) => {
+  const { gladys, app, traccar } = await createWorld();
+  t.after(() => app.stop());
+  for (let i = 0; i < 3; i += 1) {
+    traccar.addPosition(
+      position(1, { ...WORK, geofenceIds: [2], attributes: { alarm: 'powerCut' } }),
+    );
+  }
+  await settle(20);
+  assert.equal(gladys.fake.sceneEvents.filter((e) => e.key === 'alarm').length, 1);
+});
+
+test('a message without a fix keeps the last position: no false exit', async (t) => {
+  const { gladys, app, traccar } = await createWorld();
+  t.after(() => app.stop());
+  traccar.addPosition(position(1, { latitude: 0, longitude: 0 }));
+  await settle(20);
+  assert.equal(gladys.fake.sceneEvents.length, 0);
+  assert.equal(lastText(gladys, 1, 'zone'), 'Work');
+});
+
+test('a geofence created meanwhile is named in the trigger', async (t) => {
+  const { gladys, app, traccar } = await createWorld();
+  t.after(() => app.stop());
+  traccar.geofences.push({ id: 7, attributes: {}, calendarId: 0, name: 'School', area: 'x' });
+  traccar.addPosition(position(1, { ...AWAY, geofenceIds: [7] }));
+  await settle(20);
+  const enter = gladys.fake.sceneEvents.find((e) => e.key === 'geofence_enter');
+  assert.equal(enter.data.geofence, 'School');
+});
+
+test('continuous values of a moving tracker are sent at most every period', async (t) => {
+  let clock = Date.parse('2026-10-15T14:00:00Z');
+  const { gladys, app, traccar } = await createWorld({
+    now: () => clock,
+    timings: { continuousGap: 30_000 },
+  });
+  t.after(() => app.stop());
+  const speeds = () =>
+    gladys.fake.states.filter((s) => s.device_feature_external_id === featureId(2, 'speed'));
+  const before = speeds().length;
+  for (let i = 1; i <= 5; i += 1) {
+    clock += 5_000;
+    traccar.addPosition(position(2, { ...AWAY, speed: i * 10 }));
+    await settle(10);
+  }
+  assert.ok(speeds().length - before <= 1, `${speeds().length - before} speed states`);
+  // The zone goes at once.
+  traccar.addPosition(position(2, { ...WORK, geofenceIds: [2], speed: 1 }));
+  await settle(10);
+  assert.equal(lastText(gladys, 2, 'zone'), 'Work');
+});
+
+test('a phone that stops reporting (unknown) fires the offline trigger once', async (t) => {
+  const { gladys, app, traccar } = await createWorld();
+  t.after(() => app.stop());
+  traccar.updateDevice(1, { status: 'unknown' });
+  traccar.updateDevice(1, { status: 'offline' });
+  await settle(20);
+  assert.deepEqual(
+    gladys.fake.sceneEvents.map((e) => e.key),
+    ['tracker_offline'],
+  );
+});
+
 test('a tracker going offline fires its trigger, and only for added trackers', async (t) => {
   const { gladys, app, traccar } = await createWorld({ devices: 'none' });
   t.after(() => app.stop());
@@ -322,6 +387,34 @@ test('an empty configuration says what to fill in, and asks nothing of the netwo
   const bad = await createWorld({ traccar, config: { url: 'ftp://nope', token: TOKEN } });
   t.after(() => bad.app.stop());
   assert.match(bad.gladys.fake.connectionStatus.message.en, /not valid/);
+});
+
+test('two quick configuration changes leave one push link', async (t) => {
+  const { gladys, app, traccar } = await createWorld();
+  t.after(() => app.stop());
+  await Promise.all([
+    gladys.fake.configUpdated({ url: traccar.url, token: TOKEN, language: 'en' }),
+    gladys.fake.configUpdated({ url: traccar.url, token: TOKEN, language: 'de' }),
+  ]);
+  await settle(40);
+  assert.equal(traccar.sockets.size, 1);
+  assert.equal(app.hub.config.language, 'de');
+});
+
+test('refused credentials are not retried every 30 seconds', async (t) => {
+  const traccar = createTraccar();
+  const { app } = await createWorld({
+    traccar,
+    config: { url: traccar.url, token: 'wrong' },
+    timings: { fallbackInterval: 5, unauthorizedRetry: 60_000 },
+  });
+  t.after(() => app.stop());
+  const logins = () => traccar.requests.filter((r) => r.path === '/api/session').length;
+  await settle(20);
+  const count = logins();
+  await settle(60);
+  // Only the socket retries (growing delay) may still log in.
+  assert.ok(logins() - count <= 3, `${logins() - count} logins`);
 });
 
 test('a new configuration reconnects with it', async (t) => {

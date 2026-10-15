@@ -74,7 +74,8 @@ presence need a home (house or geofence).
 
 Updates are live: Traccar pushes every new position to the integration
 through its WebSocket. If the link drops, the integration reads Traccar every
-30 seconds until it is back.
+30 seconds until it is back: the latest position of each tracker is caught up,
+not the ones in between.
 
 ### Presence of a user
 
@@ -110,8 +111,9 @@ The integration adds to the scene editor, under **Integrations**:
   for one tracker and one geofence (its name exactly as in Traccar; empty
   means any). The next actions can use the tracker name, the geofence, the
   address and a map link.
-- **Tracker goes offline**: Traccar marked the tracker offline (no data for a
-  while, set by Traccar). Variables: tracker name, last update.
+- **Tracker goes offline**: the tracker stops reporting and Traccar marks it
+  offline or unknown (phones and HTTP trackers go to unknown), after the
+  timeout set in Traccar (10 minutes by default). Variables: tracker name, last update.
 - **Tracker alarm**: the tracker reports an alarm (SOS, low battery,
   overspeed, power cut, fall, tampering, vibration, movement), optionally
   only one kind. Variables: tracker name, alarm code and label, map link.

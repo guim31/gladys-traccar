@@ -41,6 +41,7 @@ export class TraccarClient {
     this.timeout = timeout ?? REQUEST_TIMEOUT_MS;
     this.cookie = null;
     this.user = null;
+    this.pending = null;
   }
 
   async #request(path, init = {}) {
@@ -59,8 +60,15 @@ export class TraccarClient {
     return response;
   }
 
-  /** Opens a session; returns the Traccar user. */
-  async login() {
+  /** Opens a session; returns the Traccar user. Concurrent calls share one login. */
+  login() {
+    this.pending ??= this.#login().finally(() => {
+      this.pending = null;
+    });
+    return this.pending;
+  }
+
+  async #login() {
     let response;
     if (this.token) {
       response = await this.#request(`/api/session?token=${encodeURIComponent(this.token)}`);

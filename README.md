@@ -19,8 +19,8 @@ protocol), not with physical GPS trackers: feedback welcome.
   Traccar geofence), and a "Presence" signal for the core's "Check user
   presence" scene action.
 - **Live**: positions pushed by the Traccar WebSocket; REST reads every 30 s
-  while it is down, catching up on what was missed.
-- **Scene triggers**: tracker enters or leaves a geofence, goes offline, raises
+  while it is down, catching up on the latest position of each tracker.
+- **Scene triggers**: tracker enters or leaves a geofence, stops reporting, raises
   an alarm (SOS, low battery, overspeed, power cut, fall, tampering...).
   Derived from the positions: no Traccar notification to configure.
 - **Scene action** "Get the position of a tracker": a ready sentence ("Car is
@@ -57,8 +57,8 @@ The integration opens a Traccar session (cookie) with the token
 reads `/api/devices`, `/api/positions` and `/api/geofences`, then listens to
 `/api/socket`. Every new position is compared with the previous one of its
 tracker: a change of `geofenceIds` fires the geofence triggers, an
-`attributes.alarm` the alarm trigger, a device status turning `offline` the
-offline trigger. Traccar only pushes its own events to users who created a
+`attributes.alarm` the alarm trigger, a device status leaving `online` (to `offline`, or `unknown` for phones
+and HTTP trackers) the offline trigger. Traccar only pushes its own events to users who created a
 notification for them; the positions always arrive, so the triggers need no
 setup in Traccar.
 

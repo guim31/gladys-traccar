@@ -78,7 +78,8 @@ con ubicación; En casa y Presencia requieren una casa (radio o geocerca).
 
 Las actualizaciones son en directo: Traccar envía cada nueva posición a la
 integración por su WebSocket. Si el enlace se cae, la integración consulta
-Traccar cada 30 segundos hasta que vuelve.
+Traccar cada 30 segundos hasta que vuelve: se recupera la última posición de
+cada rastreador, no las intermedias.
 
 ### Presencia de un usuario
 
@@ -117,8 +118,10 @@ La integración añade al editor de escenas, en **Integraciones**:
   exactamente como en Traccar; vacío, cualquiera). Las acciones siguientes
   pueden usar el nombre del rastreador, la geocerca, la dirección y un enlace
   al mapa.
-- **Un rastreador se desconecta**: Traccar ha marcado el rastreador como
-  desconectado (sin datos desde hace un tiempo, ajustado en Traccar).
+- **Un rastreador se desconecta**: el rastreador deja de transmitir y Traccar
+  lo marca como desconectado o desconocido (los teléfonos y rastreadores HTTP
+  pasan a desconocido), tras el plazo ajustado en Traccar (10 minutos por
+  defecto).
   Variables: nombre del rastreador, última actualización.
 - **Alarma de un rastreador**: el rastreador señala una alarma (SOS, batería
   baja, exceso de velocidad, corte de alimentación, caída, manipulación,

@@ -416,10 +416,10 @@
         "es": "Un rastreador se desconecta"
       },
       "description": {
-        "en": "Traccar marks the tracker offline (no data for a while).",
-        "fr": "Traccar marque le traceur hors ligne (plus de données depuis un moment).",
-        "de": "Traccar markiert den Tracker als offline (seit einer Weile keine Daten).",
-        "es": "Traccar marca el rastreador como desconectado (sin datos desde hace un tiempo)."
+        "en": "The tracker stops reporting: Traccar marks it offline or unknown.",
+        "fr": "Le traceur ne transmet plus : Traccar le marque hors ligne ou inconnu.",
+        "de": "Der Tracker meldet sich nicht mehr: Traccar markiert ihn als offline oder unbekannt.",
+        "es": "El rastreador deja de transmitir: Traccar lo marca como desconectado o desconocido."
       },
       "fields": [
         {

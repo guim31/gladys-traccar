@@ -80,7 +80,8 @@ géobarrière).
 
 Les mises à jour sont en direct : Traccar pousse chaque nouvelle position à
 l'intégration par son WebSocket. Si le lien tombe, l'intégration interroge
-Traccar toutes les 30 secondes jusqu'à son retour.
+Traccar toutes les 30 secondes jusqu'à son retour : la dernière position de
+chaque traceur est rattrapée, pas les positions intermédiaires.
 
 ### Présence d'un utilisateur
 
@@ -119,8 +120,9 @@ L'intégration ajoute à l'éditeur de scènes, dans **Intégrations** :
   exactement comme dans Traccar ; vide, n'importe laquelle). Les actions
   suivantes peuvent utiliser le nom du traceur, la géobarrière, l'adresse et un
   lien vers la carte.
-- **Un traceur passe hors ligne** : Traccar a marqué le traceur hors ligne
-  (plus de données depuis un moment, réglé dans Traccar). Variables : nom du
+- **Un traceur passe hors ligne** : le traceur ne transmet plus et Traccar le
+  marque hors ligne ou inconnu (les téléphones et traceurs HTTP passent à
+  inconnu), après le délai réglé dans Traccar (10 minutes par défaut). Variables : nom du
   traceur, dernière mise à jour.
 - **Alarme d'un traceur** : le traceur signale une alarme (SOS, batterie
   faible, excès de vitesse, coupure d'alimentation, chute, sabotage,

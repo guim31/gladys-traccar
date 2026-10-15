@@ -155,7 +155,7 @@ test('the scene triggers the hub fires are declared, with their filters and vari
   t.after(() => world.app.stop());
   const { traccar } = world;
   traccar.addPosition(position(1, { ...HOME, geofenceIds: [1] }));
-  traccar.addPosition(position(2, { ...AWAY, attributes: { alarm: 'sos' } }));
+  traccar.addPosition(position(2, { ...AWAY, attributes: { alarm: 'lowBattery' } }));
   traccar.updateDevice(2, { status: 'offline' });
   await settle(20);
   const events = world.gladys.fake.sceneEvents;

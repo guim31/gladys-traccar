@@ -29,7 +29,7 @@ export function statusOf(device) {
 
 const finite = (value) => typeof value === 'number' && Number.isFinite(value);
 
-function hasCoordinates(position) {
+export function hasCoordinates(position) {
   return (
     position &&
     finite(position.latitude) &&

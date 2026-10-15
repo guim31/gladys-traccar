@@ -255,6 +255,10 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
   notification** pour ce type ; ils sont pourtant stockés (`/api/reports/events`). Les déclencheurs
   sont donc dérivés des positions (diff de `geofenceIds`, `attributes.alarm`) et du statut des
   appareils, sans réglage côté Traccar.
+- **Un traceur HTTP (OsmAnd, donc Traccar Client) ou UDP qui se tait passe `online` → `unknown`**
+  après `status.timeout` (10 min, vérifié), jamais `offline` (réservé à la fermeture d'un canal TCP).
+  Le déclencheur « hors ligne » part donc quand le statut quitte `online`. Une alarme répétée sur
+  chaque message ne déclenche qu'une fois (comme `event.ignoreDuplicateAlerts` de Traccar).
 - À l'ouverture, le socket envoie `{"positions":[…]}` (les dernières connues), puis `devices`,
   `positions` au fil de l'eau (environ 3 s après réception), et `{}` comme keep-alive (toutes les 55 s environ). Une position
   déjà vue (même `id`) est ignorée : pas de double déclenchement.

@@ -22,7 +22,15 @@ import {
   OPTIONAL_KEYS,
   reportedKeys,
 } from './devices.js';
-import { alarmsOf, homeModeOf, mapUrl, statusOf, viewOf, zoneIdsOf } from './model.js';
+import {
+  alarmsOf,
+  hasCoordinates,
+  homeModeOf,
+  mapUrl,
+  statusOf,
+  viewOf,
+  zoneIdsOf,
+} from './model.js';
 import { alarmLabel, formatTime, INIT_FAILED, STATUS_TEXT, TEST_TEXT } from './texts.js';
 import { TraccarClient, TraccarError } from './traccar/client.js';
 import { PushLink } from './traccar/socket.js';
@@ -39,6 +47,9 @@ export const TRIGGERS = {
   alarm: 'alarm',
 };
 
+// Values that change with nearly every fix of a moving tracker.
+const CONTINUOUS_KEYS = ['speed', 'distance_home', 'address', 'last_update', 'battery'];
+
 export const DEFAULT_TIMINGS = {
   // REST reads while the push socket is down.
   fallbackInterval: 30_000,
@@ -49,10 +60,21 @@ export const DEFAULT_TIMINGS = {
   presenceEvery: 5 * 60_000,
   // Unchanged values re-sent so Gladys never shows "no recent value".
   heartbeatCheck: 30 * 60_000,
-  heartbeat: 12 * 60 * 60_000,
+  heartbeat: 11.5 * 60 * 60_000, // checked every 30 min: at most 12 h
+  // Continuous values (speed, distance, address...) of one tracker: at most
+  // one batch per period, so a fleet of moving trackers stays well under the
+  // 300 states a minute of the core. Zone, status and at home go at once.
+  continuousGap: 30_000,
+  // While Traccar refuses the credentials: one try every 10 minutes.
+  unauthorizedRetry: 10 * 60_000,
   // requestWidgetRefresh is dropped by the core beyond one call per 10 s.
   widgetGap: 10_500,
 };
+
+/** A position in a geofence the hub does not know yet (created meanwhile). */
+function view0NeedsGeofences(geofences, position) {
+  return zoneIdsOf(position).some((id) => !geofences.has(id));
+}
 
 export class Hub {
   constructor({ gladys, fetch, createSocket, timings, socketTimings, now = Date.now }) {
@@ -81,6 +103,14 @@ export class Hub {
     this.widgetTimer = null;
     this.lastWidgetRefresh = 0;
     this.stopped = false;
+    // Incremented by every stop(): work queued or awaited for an older
+    // configuration checks it and gives up.
+    this.generation = 0;
+    this.lifecycle = Promise.resolve();
+    this.lastContinuous = new Map();
+    this.continuousTimers = new Map();
+    this.publishFailing = false;
+    this.lastUnauthorizedTry = 0;
   }
 
   // --- lifecycle -------------------------------------------------------------
@@ -88,7 +118,11 @@ export class Hub {
   async start(config) {
     this.stopped = false;
     this.config = config;
+    const generation = this.generation;
     await this.#loadHouse();
+    if (generation !== this.generation) {
+      return;
+    }
     if (!isConfigured(config)) {
       this.trackers.clear();
       await this.publishDevices({ force: true });
@@ -103,6 +137,9 @@ export class Hub {
       fetch: this.fetch,
     });
     await this.#serialized(() => this.#refresh({ initial: true }));
+    if (generation !== this.generation) {
+      return; // stopped or reconfigured meanwhile
+    }
     this.link = new PushLink({
       client: this.client,
       createSocket: this.createSocket,
@@ -113,10 +150,16 @@ export class Hub {
     this.link.on('close', () => logger.debug('Push link closed, REST fallback until it is back'));
     this.link.start();
     this.#every(this.timings.fallbackInterval, () => {
-      if (!this.link?.live) {
-        return this.#serialized(() => this.#refresh());
+      if (this.link?.live) {
+        return undefined;
       }
-      return undefined;
+      if (
+        this.problem === 'unauthorized' &&
+        this.now() - this.lastUnauthorizedTry < this.timings.unauthorizedRetry
+      ) {
+        return undefined; // do not hammer Traccar with refused logins
+      }
+      return this.#serialized(() => this.#refresh());
     });
     this.#every(this.timings.geofenceInterval, () =>
       this.link?.live ? this.#serialized(() => this.#refreshGeofences()) : undefined,
@@ -129,6 +172,11 @@ export class Hub {
 
   stop() {
     this.stopped = true;
+    this.generation += 1;
+    for (const timer of this.continuousTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.continuousTimers.clear();
     this.link?.stop();
     this.link = null;
     for (const timer of this.timers) {
@@ -140,7 +188,15 @@ export class Hub {
   }
 
   /** The configuration changed: start over (the devices keep their ids). */
-  async reconfigure(config) {
+  reconfigure(config) {
+    // One lifecycle change at a time (two quick saves, a Gladys reconnection
+    // during a save): each waits for the previous one.
+    const run = this.lifecycle.then(() => this.#restart(config));
+    this.lifecycle = run.catch(() => {});
+    return run;
+  }
+
+  async #restart(config) {
     this.stop();
     this.trackers.clear();
     this.geofences.clear();
@@ -170,7 +226,10 @@ export class Hub {
 
   /** Runs fn after the previous frames and refreshes: states stay in order. */
   #serialized(fn) {
-    const run = this.queue.then(() => (this.stopped ? undefined : fn()));
+    const generation = this.generation;
+    const run = this.queue.then(() =>
+      this.stopped || generation !== this.generation ? undefined : fn(),
+    );
     this.queue = run.catch((err) => logger.error('Traccar update failed', err));
     return run;
   }
@@ -202,6 +261,10 @@ export class Hub {
 
   /** Reads the whole REST snapshot and applies it. */
   async #refresh({ initial = false } = {}) {
+    if (this.problem === 'unauthorized') {
+      this.lastUnauthorizedTry = this.now();
+    }
+    let removed = false;
     try {
       const [server, devices, positions, geofences] = await Promise.all([
         this.server && !initial ? this.server : this.client.getServer(),
@@ -211,6 +274,7 @@ export class Hub {
       ]);
       this.server = server;
       this.#setGeofences(geofences);
+      this.#checkHomeGeofence();
       const seen = new Set();
       for (const device of Array.isArray(devices) ? devices : []) {
         if (Number.isInteger(device?.id)) {
@@ -218,10 +282,10 @@ export class Hub {
           await this.#applyDevice(device);
         }
       }
-      let removed = false;
       for (const id of [...this.trackers.keys()]) {
         if (!seen.has(id)) {
           this.trackers.delete(id);
+          this.lastPresence.delete(id);
           removed = true;
         }
       }
@@ -230,20 +294,35 @@ export class Hub {
           await this.#applyPosition(position);
         }
       }
-      await this.#recovered(initial);
-      await this.publishDevices({ force: initial || removed });
-      await this.publishAllStates();
-      this.refreshWidget();
     } catch (err) {
       await this.#failed(err);
+      return;
+    }
+    await this.#recovered(initial);
+    await this.publishDevices({ force: initial || removed });
+    await this.publishAllStates();
+    this.refreshWidget();
+  }
+
+  /** A home geofence that Traccar does not have: said once per name. */
+  #checkHomeGeofence() {
+    const wanted = this.config.homeGeofence;
+    if (!wanted || this.warnedGeofence === wanted) {
+      return;
+    }
+    const names = [...this.geofences.values()].map((name) => name.toLowerCase());
+    if (!names.includes(wanted.toLowerCase())) {
+      this.warnedGeofence = wanted;
+      logger.warn(`No Traccar geofence named "${wanted}": no tracker can be at home`);
     }
   }
 
-  async #refreshGeofences() {
+  async #refreshGeofences({ quiet = false } = {}) {
     try {
       const before = JSON.stringify([...this.geofences]);
       this.#setGeofences(await this.client.getGeofences());
-      if (JSON.stringify([...this.geofences]) !== before) {
+      this.#checkHomeGeofence();
+      if (!quiet && JSON.stringify([...this.geofences]) !== before) {
         await this.publishAllStates();
         this.refreshWidget();
       }
@@ -312,7 +391,9 @@ export class Hub {
     if (before !== after) {
       logger.debug(`Tracker ${device.id}: ${before} -> ${after}`);
       this.refreshWidget();
-      if (after === 'offline') {
+      // Phones (HTTP protocols such as OsmAnd) and UDP trackers go from
+      // online to unknown, never offline: both mean "no longer reporting".
+      if (before === 'online') {
         await this.#fire(TRIGGERS.offline, tracker, {
           last_update: formatTime(tracker.device.lastUpdate, this.config.language, this.now()),
         });
@@ -328,7 +409,13 @@ export class Hub {
     if (previous && Number.isInteger(previous.id) && position.id <= previous.id) {
       return false; // the same fix again (socket greeting, REST snapshot)
     }
+    if (!hasCoordinates(position)) {
+      return false; // a message without a fix: keep the last located one
+    }
     tracker.position = position;
+    if (view0NeedsGeofences(this.geofences, position)) {
+      await this.#refreshGeofences({ quiet: true });
+    }
     const view = this.view(tracker);
     let structure = false;
     for (const key of reportedKeys(view)) {
@@ -354,7 +441,9 @@ export class Hub {
     if (before.join() !== after.join()) {
       this.refreshWidget();
     }
-    for (const alarm of alarmsOf(position)) {
+    // A tracker repeating its alarm on every message fires once.
+    const known = alarmsOf(previous);
+    for (const alarm of alarmsOf(position).filter((a) => !known.includes(a))) {
       logger.info(`Alarm "${alarm}" on tracker ${tracker.device.id}`);
       await this.#fire(TRIGGERS.alarm, tracker, {
         alarm,
@@ -478,8 +567,12 @@ export class Hub {
     if (!force && signature === this.lastDevicesSignature) {
       return;
     }
-    this.lastDevicesSignature = signature;
-    await this.gladys.publishDiscoveredDevices(devices);
+    try {
+      await this.gladys.publishDiscoveredDevices(devices);
+      this.lastDevicesSignature = signature;
+    } catch (err) {
+      logger.warn(`Devices not accepted by Gladys (${err.message}), sent again next time`);
+    }
   }
 
   /** The states of one tracker, for the features its Gladys device has. */
@@ -492,10 +585,33 @@ export class Hub {
     return buildStates(this.gladys, this.view(tracker), { language: this.config.language, keys });
   }
 
+  /**
+   * The live states of a tracker: the continuous values at most once per
+   * `continuousGap` (the latest then sent by a timer), the rest at once.
+   */
   async #publishTracker(id) {
     const tracker = this.trackers.get(id);
-    if (tracker) {
-      await this.#publish(this.#statesOf(tracker));
+    if (!tracker) {
+      return;
+    }
+    const states = this.#statesOf(tracker);
+    const now = this.now();
+    if (now - (this.lastContinuous.get(id) ?? 0) >= this.timings.continuousGap) {
+      this.lastContinuous.set(id, now);
+      await this.#publish(states);
+      return;
+    }
+    await this.#publish(
+      states.filter((s) => !CONTINUOUS_KEYS.includes(featureKeyOf(s.device_feature_external_id))),
+    );
+    if (!this.continuousTimers.has(id)) {
+      const wait = this.lastContinuous.get(id) + this.timings.continuousGap - now;
+      const timer = setTimeout(() => {
+        this.continuousTimers.delete(id);
+        this.#serialized(() => this.#publishTracker(id));
+      }, wait);
+      timer.unref?.();
+      this.continuousTimers.set(id, timer);
     }
   }
 
@@ -510,8 +626,17 @@ export class Hub {
     }
     try {
       await this.gladys.publishChangedStates(states, options);
+      if (this.publishFailing) {
+        this.publishFailing = false;
+        logger.info('Gladys accepts the states again');
+      }
     } catch (err) {
-      logger.warn(`States not accepted by Gladys (${err.message}), sent again next time`);
+      if (!this.publishFailing) {
+        this.publishFailing = true;
+        logger.warn(`States not accepted by Gladys (${err.message}), sent again next time`);
+      } else {
+        logger.debug(`States still refused (${err.message})`);
+      }
     }
   }
 

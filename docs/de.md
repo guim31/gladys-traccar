@@ -79,7 +79,8 @@ Hause und Anwesenheit brauchen ein Zuhause (Radius oder Geofence).
 
 Die Aktualisierungen kommen live: Traccar schickt jede neue Position über
 seinen WebSocket an die Integration. Fällt die Verbindung aus, fragt die
-Integration Traccar alle 30 Sekunden ab, bis sie wieder steht.
+Integration Traccar alle 30 Sekunden ab, bis sie wieder steht: Die letzte
+Position jedes Trackers wird nachgeholt, nicht die dazwischen.
 
 ### Anwesenheit eines Benutzers
 
@@ -117,8 +118,10 @@ Die Integration ergänzt den Szenen-Editor unter **Integrationen** um:
   optional für einen Tracker und einen Geofence (sein Name genau wie in
   Traccar; leer bedeutet jeder). Die folgenden Aktionen können den Trackernamen,
   den Geofence, die Adresse und einen Kartenlink verwenden.
-- **Tracker geht offline**: Traccar hat den Tracker als offline markiert (seit
-  einer Weile keine Daten, in Traccar eingestellt). Variablen: Trackername,
+- **Tracker geht offline**: Der Tracker meldet sich nicht mehr, und Traccar
+  markiert ihn als offline oder unbekannt (Smartphones und HTTP-Tracker werden
+  unbekannt), nach der in Traccar eingestellten Frist (standardmäßig 10
+  Minuten). Variablen: Trackername,
   letzte Aktualisierung.
 - **Tracker-Alarm**: Der Tracker meldet einen Alarm (SOS, Akku schwach,
   Geschwindigkeitsüberschreitung, Stromausfall, Sturz, Manipulation,
