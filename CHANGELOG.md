@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-15
+
 ### Added
 
 - One Gladys device per Traccar tracker: status, last update, zone (Traccar
@@ -26,3 +28,6 @@ the notes of the version's GitHub Release.
 - Dashboard widget "GPS trackers": every tracker with its zone, the time of its
   last position and its status.
 - Texts and documentation in English, French, German and Spanish.
+
+[Unreleased]: https://github.com/guim31/gladys-traccar/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-traccar/releases/tag/v1.0.0
