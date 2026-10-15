@@ -1,0 +1,36 @@
+[
+  {
+    "id": 2,
+    "attributes": {},
+    "groupId": 0,
+    "calendarId": 0,
+    "name": "Car",
+    "uniqueId": "100002",
+    "status": "online",
+    "lastUpdate": "2026-10-15T14:08:58.195+00:00",
+    "positionId": 4,
+    "phone": null,
+    "model": null,
+    "contact": null,
+    "category": "car",
+    "disabled": false,
+    "expirationTime": null
+  },
+  {
+    "id": 1,
+    "attributes": {},
+    "groupId": 0,
+    "calendarId": 0,
+    "name": "Phone Alice",
+    "uniqueId": "100001",
+    "status": "online",
+    "lastUpdate": "2026-10-15T14:08:55.148+00:00",
+    "positionId": 3,
+    "phone": null,
+    "model": null,
+    "contact": null,
+    "category": "person",
+    "disabled": false,
+    "expirationTime": null
+  }
+]

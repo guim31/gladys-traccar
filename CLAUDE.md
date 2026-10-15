@@ -16,8 +16,8 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/hub.test.js              # one file
+node --test --test-name-pattern "alarm"   # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
@@ -31,16 +31,21 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+index.js                          SDK wiring only (src/app.js registers the handlers)
+src/app.js                        every SDK handler, waiting for the hub to start
+src/hub.js                        trackers, states, scene events, presence pings, connection status
+src/model.js                      Traccar device + position -> tracker view (zones, home, distance)
+src/devices.js                    tracker view -> Gladys device and feature states
+src/traccar/client.js             REST client (session cookie, one re-login on 401)
+src/traccar/socket.js             push socket /api/socket, reconnection, idle watchdog
+src/scenes.js                     scene action `get_position`
+src/widgets.js                    dashboard widget `trackers`
+src/texts.js                      every text, in four languages
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
-gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+gladys-assistant-integration.json manifest: name, config_schema, actions, triggers, widget...
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
+test/                             node --test, the SDK's fake Gladys and a fake Traccar
+test/fixtures/traccar-6.16/       answers of a real Traccar 6.16.0 (test server, fake data)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +75,9 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, manifest texts, widget texts, feature names, and
+  `docs/{en,fr,de,es}.md`, kept in sync (`test/i18n.test.js`).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +239,37 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Traccar (vérifié sur Traccar 6.16.0 en Docker, 15/10/2026)
+
+- **Le WebSocket `/api/socket` n'accepte que le cookie de session** (`JSESSIONID`) : un en-tête
+  `Authorization: Bearer` y est refusé (fermeture 1006), alors qu'il passe sur le REST. La session
+  s'ouvre par `GET /api/session?token=…` (jeton utilisateur, Paramètres → Préférences → Jeton) ou
+  `POST /api/session` (formulaire `email`, `password`). Node 22+ accepte l'option `headers` de
+  son `WebSocket` global.
+- Réponses aux mauvais identifiants : jeton invalide → **400** ; mot de passe faux → **401 avec une
+  trace Java dans le corps**. Ne jamais journaliser ni afficher le corps.
+- **La vitesse est en nœuds** quel que soit le protocole (× 1,852 pour des km/h). `geofenceIds` vaut
+  `null` hors de toute zone. Une position sans fix peut valoir 0,0 : ignorée.
+- **Traccar ne pousse ses `events` (geofenceEnter, alarm…) qu'aux utilisateurs qui ont créé une
+  notification** pour ce type ; ils sont pourtant stockés (`/api/reports/events`). Les déclencheurs
+  sont donc dérivés des positions (diff de `geofenceIds`, `attributes.alarm`) et du statut des
+  appareils, sans réglage côté Traccar.
+- À l'ouverture, le socket envoie `{"positions":[…]}` (les dernières connues), puis `devices`,
+  `positions` au fil de l'eau (environ 3 s après réception), et `{}` comme keep-alive (toutes les 55 s environ). Une position
+  déjà vue (même `id`) est ignorée : pas de double déclenchement.
+- Test réel : `traccar/traccar` en conteneur `gladys-test-traccar-server`, positions simulées par le
+  protocole OsmAnd (`http://<ip>:5055/?id=<uniqueId>&lat=…&lon=…&speed=…&batt=…&alarm=sos`),
+  géobarrières créées par `POST /api/geofences` puis `POST /api/permissions`.
+
+## Présence (cœur Gladys)
+
+- Le SDK n'offre aucune API pour la présence d'un utilisateur. Le cœur la gère par scènes : l'action
+  « Vérifier la présence » (`user.check-presence`) lit les fonctionnalités `presence-sensor` choisies
+  et marque absent l'utilisateur dont aucune n'a reçu de valeur depuis N minutes ; elle ne le marque
+  jamais présent (« Utilisateur vu à la maison » le fait). D'où deux fonctionnalités :
+  `presence-sensor/binary` « À la maison » (état, déclencheur de scène) et `presence-sensor/push`
+  « Présence », republiée (sans déduplication, `publishState`) à chaque position à la maison puis
+  toutes les 5 min tant que la dernière position a moins de `presence_max_age` minutes.
+- `getHouses()` exige `location: true` dans le manifeste (403 sinon) ; `source: "houses"` n'existe
+  qu'à partir de 5.2.0 : la maison se choisit par son nom (champ texte) pour garder `>=5.1.0`.

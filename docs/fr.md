@@ -1,67 +1,181 @@
-# Template de démonstration
+# Traccar
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Amène dans Gladys les traceurs GPS de votre serveur
+[Traccar](https://www.traccar.org) : téléphones avec l'application Traccar
+Client, traceurs de voiture, d'animal ou de vélo — n'importe lequel des
+centaines de modèles que Traccar prend en charge. Chaque traceur devient un
+appareil Gladys avec sa zone, sa vitesse, sa batterie et sa distance de la
+maison ; des scènes peuvent réagir quand un traceur entre dans une zone ou en
+sort, passe hors ligne ou lève une alarme ; un traceur à la maison peut piloter
+la présence d'un utilisateur Gladys.
 
-## Ce que vous obtenez
+Traccar est un serveur de suivi complet que vous hébergez vous-même. Si vous
+voulez seulement la présence d'un téléphone, l'intégration OwnTracks de Gladys
+est plus légère ; Traccar est le bon choix si vous l'utilisez déjà, ou pour
+suivre des véhicules et des traceurs GPS.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+Testée contre un vrai serveur Traccar 6.16 avec des téléphones simulés
+(protocole OsmAnd), pas avec de vrais traceurs GPS : vos retours sont les
+bienvenus.
+
+## Prérequis
+
+- Gladys 5.1 ou plus récent.
+- Un serveur Traccar (version 5 ou plus récente) que Gladys peut joindre sur
+  votre réseau, en général sur le port 8082.
+- Un utilisateur Traccar qui voit les traceurs. Un utilisateur en lecture
+  seule suffit : l'intégration ne modifie jamais rien dans Traccar.
 
 ## Configuration
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+1. Dans Traccar, ouvrez **Paramètres → Préférences**, puis la section
+   **Jeton**, et générez un jeton (avec une date d'expiration assez lointaine).
+   Vous pouvez aussi utiliser à la place l'e-mail et le mot de passe d'un
+   utilisateur Traccar.
+2. Dans Gladys, ouvrez l'onglet **Configuration** de l'intégration :
+   - **Adresse de Traccar** : telle que vous l'ouvrez dans votre navigateur,
+     par exemple `http://192.168.1.20:8082`. Sans port, 8082 est utilisé.
+   - **Jeton**, ou **E-mail** et **Mot de passe**.
+3. Enregistrez. Le bouton **Tester la connexion** affiche la version de Traccar
+   et le nombre de traceurs et de géobarrières qu'il voit.
+4. Ouvrez l'onglet **Découverte** et ajoutez les traceurs voulus dans Gladys.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+**Maison et présence** (facultatif) :
 
-## Actions
+- La **maison** est un rayon (150 m par défaut) autour de l'emplacement de
+  votre maison Gladys (**Paramètres → Maisons**). Avec plusieurs maisons,
+  indiquez le nom de celle à utiliser ; par défaut, la première qui a un
+  emplacement.
+- Ou indiquez une **géobarrière Traccar** (par exemple `Maison`) : un traceur
+  est alors à la maison quand il est dedans, et le rayon est ignoré.
+- **Présence : dernière position au plus** : un traceur à la maison ne continue
+  de dire « vu à la maison » que tant que sa dernière position date de moins
+  que cette durée (30 minutes par défaut).
+- **Langue** : la langue des noms de fonctionnalités et des textes écrits par
+  l'intégration (zones, statuts, phrases). Français par défaut.
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+## Appareils
+
+Un appareil par traceur Traccar, avec :
+
+| Fonctionnalité        | Ce qu'elle affiche                                                        |
+| --------------------- | ------------------------------------------------------------------------- |
+| Statut                | En ligne, hors ligne ou inconnu, selon Traccar                            |
+| Dernière mise à jour  | Date et heure du dernier message reçu par Traccar                         |
+| Zone                  | Les géobarrières Traccar où se trouve le traceur, ou « Hors zone »        |
+| Vitesse               | En km/h                                                                   |
+| Batterie              | En %, si le traceur la transmet                                           |
+| En mouvement          | Oui ou non, si Traccar le calcule                                         |
+| Contact               | Mis ou coupé, pour les traceurs de véhicule qui le transmettent           |
+| Adresse               | Seulement si votre serveur Traccar calcule les adresses (géocodeur)       |
+| Distance de la maison | En km, jusqu'à la maison Gladys                                           |
+| À la maison           | Oui ou non, selon la règle de la maison ci-dessus                         |
+| Présence              | Un signal « vu à la maison » pour la présence d'un utilisateur (ci-après) |
+
+Batterie, mouvement, contact et adresse apparaissent dès que le traceur les
+transmet : si l'un d'eux apparaît plus tard, Gladys propose de **Mettre à
+jour** l'appareil dans l'onglet Découverte. La distance demande une maison
+Gladys située ; À la maison et Présence demandent une maison (rayon ou
+géobarrière).
+
+Les mises à jour sont en direct : Traccar pousse chaque nouvelle position à
+l'intégration par son WebSocket. Si le lien tombe, l'intégration interroge
+Traccar toutes les 30 secondes jusqu'à son retour.
+
+### Présence d'un utilisateur
+
+Gladys décide qui est à la maison avec des scènes. Deux façons, qui se
+combinent bien :
+
+- **Simple** : une scène déclenchée quand la fonctionnalité **À la maison** du
+  traceur passe à 1, avec l'action **Utilisateur vu à la maison** ; une
+  seconde quand elle passe à 0, avec **Utilisateur parti de la maison**.
+- **Robuste** : la fonctionnalité **Présence** envoie un signal « vu à la
+  maison » à chaque position à la maison, puis toutes les 5 minutes tant que
+  la dernière position est récente. Une scène planifiée (toutes les 5 ou 10
+  minutes) avec l'action **Vérifier la présence** (l'utilisateur, la maison, la
+  fonctionnalité **Présence** de son traceur, un délai comme 15 minutes)
+  marque l'utilisateur absent quand le téléphone n'a pas été vu à la maison
+  depuis ce délai — même s'il n'a plus de batterie au bureau.
+
+Les scènes « l'utilisateur quitte la maison » et « l'utilisateur rentre » de
+Gladys fonctionnent alors comme d'habitude.
+
+## Widget du tableau de bord
+
+Le widget **Traceurs GPS** liste chaque traceur (huit au plus) avec sa zone,
+l'heure de sa dernière position et son statut en pastille de couleur. Touchez
+un traceur pour voir son adresse, sa vitesse, sa batterie, sa distance de la
+maison et un lien vers la carte (OpenStreetMap).
 
 ## Scènes
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+L'intégration ajoute à l'éditeur de scènes, dans **Intégrations** :
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+**Déclencheurs**
 
-## Tableau de bord
+- **Un traceur entre dans une géobarrière** et **Un traceur sort d'une
+  géobarrière** : éventuellement pour un traceur et une géobarrière (son nom
+  exactement comme dans Traccar ; vide, n'importe laquelle). Les actions
+  suivantes peuvent utiliser le nom du traceur, la géobarrière, l'adresse et un
+  lien vers la carte.
+- **Un traceur passe hors ligne** : Traccar a marqué le traceur hors ligne
+  (plus de données depuis un moment, réglé dans Traccar). Variables : nom du
+  traceur, dernière mise à jour.
+- **Alarme d'un traceur** : le traceur signale une alarme (SOS, batterie
+  faible, excès de vitesse, coupure d'alimentation, chute, sabotage,
+  vibration, mouvement), éventuellement d'un seul type. Variables : nom du
+  traceur, code et libellé de l'alarme, lien vers la carte.
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+Ces déclencheurs viennent des positions elles-mêmes : aucune notification à
+créer dans Traccar. Seuls les traceurs ajoutés à Gladys les déclenchent.
+
+**Action**
+
+- **Lire la position d'un traceur** : renvoie une phrase toute prête
+  (« Voiture est dans la zone Travail, à 4,1 km de la maison, position de
+  16:08. »), et le statut, la zone, l'adresse, à la maison (oui/non), la
+  distance de la maison (km, -1 si inconnue), la vitesse (km/h), l'heure de la
+  position et un lien vers la carte, pour les actions suivantes.
+
+## Exemples de scènes
+
+- **Les enfants sont rentrés** : déclencheur « Un traceur entre dans une
+  géobarrière », traceur « Téléphone Léa », géobarrière « Maison » → envoyer le
+  message « Léa est rentrée ».
+- **Où est la voiture ?** Déclencheur : un bouton ou un message → action « Lire
+  la position d'un traceur » (Voiture) → envoyer un message avec la phrase et
+  le lien vers la carte.
+- **SOS** : déclencheur « Alarme d'un traceur », alarme « SOS » → envoyer à
+  tous un message avec le nom du traceur et le lien vers la carte, et allumer
+  les lumières.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **« Traccar a refusé le jeton »** : le jeton a expiré ou a été révoqué ;
+  générez-en un nouveau. Avec un e-mail et un mot de passe, vérifiez-les dans
+  l'interface web de Traccar.
+- **« Traccar ne répond pas »** : vérifiez l'adresse (avec le port) depuis un
+  autre appareil du réseau, et que Traccar est démarré. L'intégration tourne
+  dans un conteneur : `localhost` n'y désigne pas votre serveur, utilisez son
+  adresse IP.
+- **Pas de distance de la maison** : la maison Gladys n'a pas d'emplacement
+  (**Paramètres → Maisons**), ou l'intégration a été installée sans
+  l'autorisation de lire l'emplacement de la maison.
+- **Un traceur jamais « à la maison »** : vérifiez le rayon, ou le nom exact de
+  la géobarrière de la maison ; un téléphone à l'intérieur peut donner une
+  position à quelques dizaines de mètres.
+- Le détail est dans les logs de l'intégration, avec `LOG_LEVEL=debug` pour
+  chaque message. Les positions ne sont jamais écrites dans les logs au niveau
+  normal.
+
+## Limites
+
+- Pas de carte dans le tableau de bord : le vocabulaire des widgets de Gladys
+  n'en a pas ; la carte s'ouvre dans OpenStreetMap.
+- Lecture seule : aucune commande n'est envoyée aux traceurs.
+- Les événements propres à Traccar (excès de vitesse calculé par le serveur à
+  partir d'une limite, maintenance, carburant) ne sont pas des déclencheurs ;
+  les alarmes transmises par les traceurs, si.
+- Limites de vitesse, géobarrières et statuts sont ceux de Traccar : modifiez-les
+  là-bas.

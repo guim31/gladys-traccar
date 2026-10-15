@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "attributes": {},
+    "calendarId": 0,
+    "name": "Home",
+    "description": null,
+    "area": "CIRCLE (48.8566 2.3522, 200)"
+  },
+  {
+    "id": 2,
+    "attributes": {},
+    "calendarId": 0,
+    "name": "Work",
+    "description": null,
+    "area": "CIRCLE (48.8700 2.3000, 300)"
+  }
+]
