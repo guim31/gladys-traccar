@@ -30,6 +30,21 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration holds:
+
+- the Traccar token, or the email and password of a Traccar user, in the
+  Gladys configuration (`secret` fields, never sent back to the browser by
+  Gladys) — never in `/data`, never in the logs. A read-only Traccar user is
+  enough: the integration only reads;
+- nothing in `/data`: the positions, zones and statuses live in memory only;
+- the location of the Gladys house (manifest `location: true`), read to compute
+  the distance from home, kept in memory;
+- network: HTTP(S) and WebSocket connections to the Traccar address the
+  administrator entered. No other outbound connection. Redirects are not
+  followed, so the credentials are never sent to another address. Positions
+  are never written in the logs at the info level.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+and Traccar itself (report to its maintainers, see
+[traccar/traccar](https://github.com/traccar/traccar)).

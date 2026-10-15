@@ -1,177 +1,767 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Traccar",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Your Traccar GPS trackers in Gladys: zones, presence, speed, battery, alarms.",
+    "fr": "Vos traceurs GPS Traccar dans Gladys : zones, présence, vitesse, batterie, alarmes.",
+    "de": "Deine Traccar-GPS-Tracker in Gladys: Zonen, Anwesenheit, Geschwindigkeit, Akku, Alarme.",
+    "es": "Sus rastreadores GPS Traccar en Gladys: zonas, presencia, velocidad, batería, alarmas."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-traccar:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-traccar/main/cover.png",
+  "categories": ["security"],
+  "transports": ["local"],
+  "location": true,
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Connect your Traccar server",
+        "fr": "Connecter votre serveur Traccar",
+        "de": "Verbinde deinen Traccar-Server",
+        "es": "Conecte su servidor Traccar"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Enter the address of Traccar as you open it in your browser (port 8082 by default). Then paste a token: in Traccar, open Settings, Preferences, Token, and generate one. A read-only Traccar user is enough. Or enter the email and password of a Traccar user instead.",
+        "fr": "Saisissez l'adresse de Traccar telle que vous l'ouvrez dans votre navigateur (port 8082 par défaut). Collez ensuite un jeton : dans Traccar, ouvrez Paramètres, Préférences, Jeton, et générez-en un. Un utilisateur Traccar en lecture seule suffit. Ou saisissez à la place l'e-mail et le mot de passe d'un utilisateur Traccar.",
+        "de": "Gib die Adresse von Traccar ein, wie du sie im Browser öffnest (standardmäßig Port 8082). Füge dann ein Token ein: Öffne in Traccar Einstellungen, Präferenzen, Token und erzeuge eines. Ein Traccar-Benutzer mit Nur-Lese-Rechten genügt. Oder gib stattdessen E-Mail und Passwort eines Traccar-Benutzers ein.",
+        "es": "Introduzca la dirección de Traccar tal como la abre en su navegador (puerto 8082 por defecto). Pegue después un token: en Traccar, abra Ajustes, Preferencias, Token, y genere uno. Basta con un usuario de Traccar de solo lectura. O introduzca en su lugar el correo electrónico y la contraseña de un usuario de Traccar."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://www.traccar.org/documentation/",
+          "label": {
+            "en": "Traccar documentation",
+            "fr": "Documentation de Traccar",
+            "de": "Traccar-Dokumentation",
+            "es": "Documentación de Traccar"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "url",
+      "type": "string",
+      "label": {
+        "en": "Traccar address",
+        "fr": "Adresse de Traccar",
+        "de": "Traccar-Adresse",
+        "es": "Dirección de Traccar"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "placeholder": {
+        "en": "http://192.168.1.20:8082",
+        "fr": "http://192.168.1.20:8082",
+        "de": "http://192.168.1.20:8082",
+        "es": "http://192.168.1.20:8082"
+      },
+      "required": true
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "key": "token",
+      "type": "secret",
+      "label": {
+        "en": "Token (recommended)",
+        "fr": "Jeton (recommandé)",
+        "de": "Token (empfohlen)",
+        "es": "Token (recomendado)"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "required": false
     },
     {
-      "key": "unit",
+      "key": "email",
+      "type": "string",
+      "label": {
+        "en": "Or: email of a Traccar user",
+        "fr": "Ou : e-mail d'un utilisateur Traccar",
+        "de": "Oder: E-Mail eines Traccar-Benutzers",
+        "es": "O bien: correo de un usuario de Traccar"
+      },
+      "required": false
+    },
+    {
+      "key": "password",
+      "type": "secret",
+      "label": {
+        "en": "Password of this user",
+        "fr": "Mot de passe de cet utilisateur",
+        "de": "Passwort dieses Benutzers",
+        "es": "Contraseña de este usuario"
+      },
+      "required": false
+    },
+    {
+      "key": "home_section",
+      "type": "section",
+      "label": {
+        "en": "Home and presence",
+        "fr": "Maison et présence",
+        "de": "Zuhause und Anwesenheit",
+        "es": "Casa y presencia"
+      },
+      "description": {
+        "en": "A tracker is at home when it is within the radius below around the location of your Gladys house, or, if you name one, inside that Traccar geofence. Use its At home feature in scenes with \"User seen at home\" and \"User left home\", or its Presence feature with \"Check user presence\".",
+        "fr": "Un traceur est à la maison quand il est dans le rayon ci-dessous autour de l'emplacement de votre maison Gladys, ou, si vous en indiquez une, dans cette géobarrière Traccar. Utilisez sa fonctionnalité À la maison dans des scènes avec « Utilisateur vu à la maison » et « Utilisateur parti de la maison », ou sa fonctionnalité Présence avec « Vérifier la présence ».",
+        "de": "Ein Tracker ist zu Hause, wenn er im unten angegebenen Radius um den Standort deines Gladys-Hauses liegt, oder, wenn du einen nennst, innerhalb dieses Traccar-Geofence. Nutze seine Funktion Zu Hause in Szenen mit „Benutzer zu Hause gesehen“ und „Benutzer hat das Zuhause verlassen“, oder seine Funktion Anwesenheit mit „Anwesenheit von Benutzern überprüfen“.",
+        "es": "Un rastreador está en casa cuando se encuentra en el radio indicado abajo alrededor de la ubicación de su casa Gladys o, si indica una, dentro de esa geocerca de Traccar. Utilice su función En casa en escenas con «Usuario visto en casa» y «Usuario fuera de casa», o su función Presencia con «Comprobar presencia del usuario»."
+      }
+    },
+    {
+      "key": "house",
+      "type": "string",
+      "label": {
+        "en": "Gladys house (optional)",
+        "fr": "Maison Gladys (facultatif)",
+        "de": "Gladys-Haus (optional)",
+        "es": "Casa Gladys (opcional)"
+      },
+      "placeholder": {
+        "en": "Name of the house, empty: the first located one",
+        "fr": "Nom de la maison, vide : la première située",
+        "de": "Name des Hauses, leer: das erste mit Standort",
+        "es": "Nombre de la casa, vacío: la primera ubicada"
+      },
+      "required": false
+    },
+    {
+      "key": "home_radius",
+      "type": "number",
+      "label": {
+        "en": "Home radius (meters)",
+        "fr": "Rayon de la maison (mètres)",
+        "de": "Radius um das Zuhause (Meter)",
+        "es": "Radio de la casa (metros)"
+      },
+      "required": false,
+      "default": 150,
+      "min": 20,
+      "max": 5000
+    },
+    {
+      "key": "home_geofence",
+      "type": "string",
+      "label": {
+        "en": "Or: Traccar geofence of home",
+        "fr": "Ou : géobarrière Traccar de la maison",
+        "de": "Oder: Traccar-Geofence des Zuhauses",
+        "es": "O bien: geocerca de Traccar de la casa"
+      },
+      "placeholder": {
+        "en": "Home",
+        "fr": "Maison",
+        "de": "Zuhause",
+        "es": "Casa"
+      },
+      "required": false
+    },
+    {
+      "key": "presence_max_age",
+      "type": "number",
+      "label": {
+        "en": "Presence: last fix at most (minutes)",
+        "fr": "Présence : dernière position au plus (minutes)",
+        "de": "Anwesenheit: letzte Position höchstens (Minuten)",
+        "es": "Presencia: última posición como máximo (minutos)"
+      },
+      "required": false,
+      "default": 30,
+      "min": 5,
+      "max": 720
+    },
+    {
+      "key": "language",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
-      "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
-      ]
-    },
-    {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
-      "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+      "label": {
+        "en": "Language of the names and texts",
+        "fr": "Langue des noms et des textes",
+        "de": "Sprache der Namen und Texte",
+        "es": "Idioma de los nombres y textos"
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
       "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "geofence_enter",
+      "label": {
+        "en": "Tracker enters a geofence",
+        "fr": "Un traceur entre dans une géobarrière",
+        "de": "Tracker betritt einen Geofence",
+        "es": "Un rastreador entra en una geocerca"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "A position of the tracker is inside a Traccar geofence it was not in.",
+        "fr": "Une position du traceur est dans une géobarrière Traccar où il n'était pas.",
+        "de": "Eine Position des Trackers liegt in einem Traccar-Geofence, in dem er nicht war.",
+        "es": "Una posición del rastreador está dentro de una geocerca de Traccar en la que no estaba."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "label": {
+            "en": "Tracker",
+            "fr": "Traceur",
+            "de": "Tracker",
+            "es": "Rastreador"
+          }
         },
         {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "key": "geofence",
+          "type": "string",
+          "label": {
+            "en": "Geofence (optional)",
+            "fr": "Géobarrière (facultatif)",
+            "de": "Geofence (optional)",
+            "es": "Geocerca (opcional)"
+          },
+          "description": {
+            "en": "The name of the geofence exactly as in Traccar. Empty: any geofence.",
+            "fr": "Le nom de la géobarrière exactement comme dans Traccar. Vide : n'importe laquelle.",
+            "de": "Der Name des Geofence genau wie in Traccar. Leer: jeder Geofence.",
+            "es": "El nombre de la geocerca exactamente como en Traccar. Vacío: cualquier geocerca."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "tracker",
+          "type": "string",
+          "label": {
+            "en": "Tracker name",
+            "fr": "Nom du traceur",
+            "de": "Trackername",
+            "es": "Nombre del rastreador"
+          }
+        },
+        {
+          "key": "geofence",
+          "type": "string",
+          "label": {
+            "en": "Geofence",
+            "fr": "Géobarrière",
+            "de": "Geofence",
+            "es": "Geocerca"
+          }
+        },
+        {
+          "key": "address",
+          "type": "string",
+          "label": {
+            "en": "Address",
+            "fr": "Adresse",
+            "de": "Adresse",
+            "es": "Dirección"
+          }
+        },
+        {
+          "key": "map_url",
+          "type": "string",
+          "label": {
+            "en": "Map link",
+            "fr": "Lien vers la carte",
+            "de": "Kartenlink",
+            "es": "Enlace al mapa"
+          }
+        }
+      ]
+    },
+    {
+      "key": "geofence_exit",
+      "label": {
+        "en": "Tracker leaves a geofence",
+        "fr": "Un traceur sort d'une géobarrière",
+        "de": "Tracker verlässt einen Geofence",
+        "es": "Un rastreador sale de una geocerca"
+      },
+      "description": {
+        "en": "A position of the tracker is outside a Traccar geofence it was in.",
+        "fr": "Une position du traceur est hors d'une géobarrière Traccar où il était.",
+        "de": "Eine Position des Trackers liegt außerhalb eines Traccar-Geofence, in dem er war.",
+        "es": "Una posición del rastreador está fuera de una geocerca de Traccar en la que estaba."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Tracker",
+            "fr": "Traceur",
+            "de": "Tracker",
+            "es": "Rastreador"
+          }
+        },
+        {
+          "key": "geofence",
+          "type": "string",
+          "label": {
+            "en": "Geofence (optional)",
+            "fr": "Géobarrière (facultatif)",
+            "de": "Geofence (optional)",
+            "es": "Geocerca (opcional)"
+          },
+          "description": {
+            "en": "The name of the geofence exactly as in Traccar. Empty: any geofence.",
+            "fr": "Le nom de la géobarrière exactement comme dans Traccar. Vide : n'importe laquelle.",
+            "de": "Der Name des Geofence genau wie in Traccar. Leer: jeder Geofence.",
+            "es": "El nombre de la geocerca exactamente como en Traccar. Vacío: cualquier geocerca."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "tracker",
+          "type": "string",
+          "label": {
+            "en": "Tracker name",
+            "fr": "Nom du traceur",
+            "de": "Trackername",
+            "es": "Nombre del rastreador"
+          }
+        },
+        {
+          "key": "geofence",
+          "type": "string",
+          "label": {
+            "en": "Geofence",
+            "fr": "Géobarrière",
+            "de": "Geofence",
+            "es": "Geocerca"
+          }
+        },
+        {
+          "key": "address",
+          "type": "string",
+          "label": {
+            "en": "Address",
+            "fr": "Adresse",
+            "de": "Adresse",
+            "es": "Dirección"
+          }
+        },
+        {
+          "key": "map_url",
+          "type": "string",
+          "label": {
+            "en": "Map link",
+            "fr": "Lien vers la carte",
+            "de": "Kartenlink",
+            "es": "Enlace al mapa"
+          }
+        }
+      ]
+    },
+    {
+      "key": "tracker_offline",
+      "label": {
+        "en": "Tracker goes offline",
+        "fr": "Un traceur passe hors ligne",
+        "de": "Tracker geht offline",
+        "es": "Un rastreador se desconecta"
+      },
+      "description": {
+        "en": "The tracker stops reporting: Traccar marks it offline or unknown.",
+        "fr": "Le traceur ne transmet plus : Traccar le marque hors ligne ou inconnu.",
+        "de": "Der Tracker meldet sich nicht mehr: Traccar markiert ihn als offline oder unbekannt.",
+        "es": "El rastreador deja de transmitir: Traccar lo marca como desconectado o desconocido."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Tracker",
+            "fr": "Traceur",
+            "de": "Tracker",
+            "es": "Rastreador"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "tracker",
+          "type": "string",
+          "label": {
+            "en": "Tracker name",
+            "fr": "Nom du traceur",
+            "de": "Trackername",
+            "es": "Nombre del rastreador"
+          }
+        },
+        {
+          "key": "last_update",
+          "type": "string",
+          "label": {
+            "en": "Last update",
+            "fr": "Dernière mise à jour",
+            "de": "Letzte Aktualisierung",
+            "es": "Última actualización"
+          }
+        }
+      ]
+    },
+    {
+      "key": "alarm",
+      "label": {
+        "en": "Tracker alarm",
+        "fr": "Alarme d'un traceur",
+        "de": "Tracker-Alarm",
+        "es": "Alarma de un rastreador"
+      },
+      "description": {
+        "en": "The tracker reports an alarm: SOS, low battery, overspeed...",
+        "fr": "Le traceur signale une alarme : SOS, batterie faible, excès de vitesse...",
+        "de": "Der Tracker meldet einen Alarm: SOS, Akku schwach, zu schnell...",
+        "es": "El rastreador señala una alarma: SOS, batería baja, exceso de velocidad..."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Tracker",
+            "fr": "Traceur",
+            "de": "Tracker",
+            "es": "Rastreador"
+          }
+        },
+        {
+          "key": "alarm",
+          "type": "select",
+          "label": {
+            "en": "Alarm (optional)",
+            "fr": "Alarme (facultatif)",
+            "de": "Alarm (optional)",
+            "es": "Alarma (opcional)"
+          },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            {
+              "value": "sos",
+              "label": {
+                "en": "SOS",
+                "fr": "SOS",
+                "de": "SOS",
+                "es": "SOS"
+              }
+            },
+            {
+              "value": "lowBattery",
+              "label": {
+                "en": "Low battery",
+                "fr": "Batterie faible",
+                "de": "Akku schwach",
+                "es": "Batería baja"
+              }
+            },
+            {
+              "value": "overspeed",
+              "label": {
+                "en": "Overspeed",
+                "fr": "Excès de vitesse",
+                "de": "Geschwindigkeitsüberschreitung",
+                "es": "Exceso de velocidad"
+              }
+            },
+            {
+              "value": "powerCut",
+              "label": {
+                "en": "Power cut",
+                "fr": "Coupure d'alimentation",
+                "de": "Stromausfall",
+                "es": "Corte de alimentación"
+              }
+            },
+            {
+              "value": "fallDown",
+              "label": {
+                "en": "Fall",
+                "fr": "Chute",
+                "de": "Sturz",
+                "es": "Caída"
+              }
+            },
+            {
+              "value": "tampering",
+              "label": {
+                "en": "Tampering",
+                "fr": "Sabotage",
+                "de": "Manipulation",
+                "es": "Manipulación"
+              }
+            },
+            {
+              "value": "vibration",
+              "label": {
+                "en": "Vibration",
+                "fr": "Vibration",
+                "de": "Vibration",
+                "es": "Vibración"
+              }
+            },
+            {
+              "value": "movement",
+              "label": {
+                "en": "Movement",
+                "fr": "Mouvement",
+                "de": "Bewegung",
+                "es": "Movimiento"
+              }
+            }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "tracker",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Tracker name",
+            "fr": "Nom du traceur",
+            "de": "Trackername",
+            "es": "Nombre del rastreador"
+          }
+        },
+        {
+          "key": "alarm",
+          "type": "string",
+          "label": {
+            "en": "Alarm code",
+            "fr": "Code de l'alarme",
+            "de": "Alarmcode",
+            "es": "Código de la alarma"
+          }
+        },
+        {
+          "key": "alarm_label",
+          "type": "string",
+          "label": {
+            "en": "Alarm",
+            "fr": "Alarme",
+            "de": "Alarm",
+            "es": "Alarma"
+          }
+        },
+        {
+          "key": "map_url",
+          "type": "string",
+          "label": {
+            "en": "Map link",
+            "fr": "Lien vers la carte",
+            "de": "Kartenlink",
+            "es": "Enlace al mapa"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "get_position",
+      "label": {
+        "en": "Get the position of a tracker",
+        "fr": "Lire la position d'un traceur",
+        "de": "Position eines Trackers abfragen",
+        "es": "Leer la posición de un rastreador"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "A sentence such as \"Car is at home\", and the zone, address, distance from home.",
+        "fr": "Une phrase comme « Voiture est à la maison », et la zone, l'adresse, la distance.",
+        "de": "Ein Satz wie „Auto ist zu Hause“ sowie Zone, Adresse und Entfernung.",
+        "es": "Una frase como «Coche está en casa», y la zona, la dirección, la distancia."
+      },
+      "timeout_seconds": 10,
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "label": {
+            "en": "Tracker",
+            "fr": "Traceur",
+            "de": "Tracker",
+            "es": "Rastreador"
+          },
           "required": true
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
+          "key": "sentence",
+          "type": "string",
+          "label": {
+            "en": "Sentence",
+            "fr": "Phrase",
+            "de": "Satz",
+            "es": "Frase"
+          }
+        },
+        {
+          "key": "tracker",
+          "type": "string",
+          "label": {
+            "en": "Tracker name",
+            "fr": "Nom du traceur",
+            "de": "Trackername",
+            "es": "Nombre del rastreador"
+          }
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "label": {
+            "en": "Status",
+            "fr": "Statut",
+            "de": "Status",
+            "es": "Estado"
+          }
+        },
+        {
+          "key": "zone",
+          "type": "string",
+          "label": {
+            "en": "Zone",
+            "fr": "Zone",
+            "de": "Zone",
+            "es": "Zona"
+          }
+        },
+        {
+          "key": "address",
+          "type": "string",
+          "label": {
+            "en": "Address",
+            "fr": "Adresse",
+            "de": "Adresse",
+            "es": "Dirección"
+          }
+        },
+        {
+          "key": "at_home",
           "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "label": {
+            "en": "At home",
+            "fr": "À la maison",
+            "de": "Zu Hause",
+            "es": "En casa"
+          }
+        },
+        {
+          "key": "distance_km",
+          "type": "number",
+          "label": {
+            "en": "Distance from home (km, -1 unknown)",
+            "fr": "Distance de la maison (km, -1 inconnue)",
+            "de": "Entfernung von zu Hause (km, -1 unbekannt)",
+            "es": "Distancia de casa (km, -1 desconocida)"
+          }
+        },
+        {
+          "key": "speed_kmh",
+          "type": "number",
+          "label": {
+            "en": "Speed (km/h)",
+            "fr": "Vitesse (km/h)",
+            "de": "Geschwindigkeit (km/h)",
+            "es": "Velocidad (km/h)"
+          }
+        },
+        {
+          "key": "last_update",
+          "type": "string",
+          "label": {
+            "en": "Time of the position",
+            "fr": "Heure de la position",
+            "de": "Zeit der Position",
+            "es": "Hora de la posición"
+          }
+        },
+        {
+          "key": "map_url",
+          "type": "string",
+          "label": {
+            "en": "Map link",
+            "fr": "Lien vers la carte",
+            "de": "Kartenlink",
+            "es": "Enlace al mapa"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "trackers",
+      "label": {
+        "en": "GPS trackers",
+        "fr": "Traceurs GPS",
+        "de": "GPS-Tracker",
+        "es": "Rastreadores GPS"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "Every tracker with its zone, its last position time and its status.",
+        "fr": "Chaque traceur avec sa zone, l'heure de sa dernière position et son statut.",
+        "de": "Jeder Tracker mit Zone, Zeit der letzten Position und Status.",
+        "es": "Cada rastreador con su zona, la hora de su última posición y su estado."
+      },
+      "icon": "map-pin"
     }
   ]
 }
