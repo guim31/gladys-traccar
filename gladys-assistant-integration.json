@@ -8,8 +8,8 @@
     "de": "Deine Traccar-GPS-Tracker in Gladys: Zonen, Anwesenheit, Geschwindigkeit, Akku, Alarme.",
     "es": "Sus rastreadores GPS Traccar en Gladys: zonas, presencia, velocidad, batería, alarmas."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/guim31/gladys-traccar:1.0.0",
+  "version": "1.0.1",
+  "docker_image": "ghcr.io/guim31/gladys-traccar:1.0.1",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/guim31/gladys-traccar/main/cover.png",
   "categories": ["security"],
