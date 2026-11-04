@@ -461,7 +461,8 @@ test('a normal cycle writes nothing at info level; an outage one line, its end o
   assert.equal(back.length, 1, back.join('\n'));
   assert.match(back[0], /INFO.*Traccar is back/);
   // Never a coordinate in the logs.
-  assert.ok(logs.lines.every((line) => !/48\.8|2\.35/.test(line)));
+  // Without the timestamp prefix: its seconds (e.g. `42.351Z`) could match a coordinate.
+  assert.ok(logs.lines.every((line) => !/48\.8|2\.35/.test(line.replace(/^\[[^\]]+\] /, ''))));
 });
 
 test('a heartbeat re-sends unchanged values', async (t) => {
